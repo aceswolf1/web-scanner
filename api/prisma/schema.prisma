@@ -1,0 +1,105 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Currency {
+  USD
+  EUR
+  GBP
+  JPY
+  CAD
+  MXN
+  COP
+}
+
+model Item {
+  id         String    @id @default(cuid())
+  name       String
+  imageUrl   String?
+  isFavorite Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  tags    ItemTag[]
+  sources Source[]
+
+  @@map("items")
+}
+
+model Tag {
+  id    String    @id @default(cuid())
+  name  String    @unique
+  color String    @default("#8B5CF6")
+  items ItemTag[]
+
+  @@map("tags")
+}
+
+model ItemTag {
+  itemId String
+  tagId  String
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, tagId])
+  @@map("item_tags")
+}
+
+model Source {
+  id                 String    @id @default(cuid())
+  itemId             String
+  url                String
+  currency           Currency  @default(USD)
+  priceClass         String?
+  cssRule            String?
+  fatherClass        String?
+  isMain             Boolean   @default(false)
+  isDiscounted       Boolean   @default(false)
+  isUsed             Boolean   @default(false)
+  currentPrice       Float?
+  lastScrapedAt      DateTime?
+  lastError          String?
+  notes              String?
+  matchIndex         Int       @default(0)
+  scrapeSuccessCount Int       @default(0)
+  scrapeFailCount    Int       @default(0)
+  lastSuccessAt      DateTime?
+  detectedCurrency   String?
+
+  item         Item           @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  priceHistory PriceHistory[]
+
+  @@map("sources")
+}
+
+model PriceHistory {
+  id        String   @id @default(cuid())
+  sourceId  String
+  price     Float
+  scrapedAt DateTime @default(now())
+
+  source Source @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId, scrapedAt])
+  @@map("price_history")
+}
+
+model SelectorRecipe {
+  id          String   @id @default(cuid())
+  name        String
+  domain      String?
+  priceClass  String?
+  cssRule     String?
+  fatherClass String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("selector_recipes")
+}

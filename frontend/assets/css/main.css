@@ -1,0 +1,63 @@
+:root {
+  --font-sans: 'Inter', sans-serif;
+  --font-brand: 'Space Grotesk', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+:root, [data-theme="light"] {
+  --background: #FAF8FF;
+  --foreground: #1A0A3C;
+  --card: #FFFFFF;
+  --card-foreground: #1A0A3C;
+  --border: rgba(124, 58, 237, 0.15);
+  --primary: #7C3AED;
+  --primary-foreground: #FFFFFF;
+  --accent: #A855F7;
+  --muted: #F3EEFF;
+  --muted-foreground: #6B5FA0;
+  --secondary: #EDE9FE;
+  --secondary-foreground: #4C1D95;
+  --sidebar-bg: #F0EBFF;
+  --topbar-bg: rgba(250, 248, 255, 0.85);
+}
+
+[data-theme="dark"] {
+  --background: #08050F;
+  --foreground: #F0EEFF;
+  --card: #0F0B1E;
+  --card-foreground: #F0EEFF;
+  --border: rgba(139, 92, 246, 0.18);
+  --primary: #8B5CF6;
+  --primary-foreground: #FFFFFF;
+  --accent: #A855F7;
+  --muted: #150F2A;
+  --muted-foreground: #7C6FA0;
+  --secondary: #1A1330;
+  --secondary-foreground: #C4B5FD;
+  --sidebar-bg: #0B0B14;
+  --topbar-bg: rgba(8, 5, 15, 0.85);
+}
+
+* { font-family: var(--font-sans); }
+body { background: var(--background); color: var(--foreground); }
+.font-mono { font-family: var(--font-mono) !important; }
+.font-brand { font-family: var(--font-brand) !important; }
+
+/* Tabular numbers for prices */
+.font-mono,
+.tabular-nums {
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Line clamp utility (Tailwind v3 includes this by default; fallback for safety) */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Sidebar accent gradient line */
+.sidenav-accent {
+  background: linear-gradient(90deg, #A78BFA 0%, #7C3AED 50%, #5B21B6 100%);
+}

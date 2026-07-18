@@ -1,0 +1,31 @@
+# Environment
+.env
+
+# Docker volumes (local dev)
+postgres_data/
+minio_data/
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Build outputs
+dist/
+build/
+.vite/
+.nuxt/
+.output/
+
+# Superdesign tmp / generated artifacts
+.superdesign/tmp/
+.superdesign/design_iterations/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*

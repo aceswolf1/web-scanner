@@ -1,0 +1,13 @@
+# Nuxt build artifacts
+.nuxt/
+.output/
+.cache/
+dist/
+
+# Node
+node_modules/
+*.log
+
+# Env / OS
+.env.local
+.DS_Store
