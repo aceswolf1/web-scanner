@@ -42,12 +42,27 @@ export function toPublicImageUrl(url: string | null | undefined): string | null 
   return url
 }
 
+/** Anonymous read-only access to objects — browsers load images without signing. */
+const PUBLIC_READ_POLICY = JSON.stringify({
+  Version: '2012-10-17',
+  Statement: [
+    {
+      Effect: 'Allow',
+      Principal: { AWS: ['*'] },
+      Action: ['s3:GetObject'],
+      Resource: [`arn:aws:s3:::${BUCKET}/*`],
+    },
+  ],
+})
+
 /**
- * Ensures the bucket exists. Called once on startup. Idempotent.
+ * Ensures the bucket exists and is publicly readable. Called once on startup.
+ * Idempotent — replaces the one-shot `storage-init` container in deployments.
  */
 export async function ensureBucket(): Promise<void> {
   const exists = await minioClient.bucketExists(BUCKET)
   if (!exists) {
     await minioClient.makeBucket(BUCKET, 'us-east-1')
   }
+  await minioClient.setBucketPolicy(BUCKET, PUBLIC_READ_POLICY)
 }

@@ -1,0 +1,39 @@
+# Watchtower — auto-updates the Web Scanner containers on the NAS.
+#
+# Deploy this as a SEPARATE TrueNAS Custom App (Apps -> Discover -> Custom App
+# -> Install via YAML). It polls GHCR and, when a new `:latest` image digest
+# appears, pulls it and recreates the container.
+#
+# Safe by design:
+#   - WATCHTOWER_LABEL_ENABLE=true means it ONLY touches containers labelled
+#     `com.centurylinklabs.watchtower.enable=true` (api, scraper, frontend).
+#     db (Postgres) and storage (MinIO) are left alone — data is never
+#     surprise-upgraded.
+#   - Pull-only: nothing on the NAS is exposed to the internet.
+#
+# If you already run Watchtower for another app (e.g. PixelPaladin) with
+# WATCHTOWER_LABEL_ENABLE=true, you do NOT need a second one — it watches every
+# labelled container on the host, including these.
+#
+# Private packages: if your GHCR packages are private, provide pull credentials
+# (see deploy/AUTOMATION.md, "Private GHCR images").
+
+services:
+  watchtower:
+    image: containrrr/watchtower:latest
+    restart: unless-stopped
+    environment:
+      # Poll interval in seconds (300 = every 5 minutes).
+      WATCHTOWER_POLL_INTERVAL: "300"
+      # Only update containers explicitly opted in via label.
+      WATCHTOWER_LABEL_ENABLE: "true"
+      # Delete the old image after a successful update.
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_NO_STARTUP_MESSAGE: "true"
+      TZ: "UTC"
+    volumes:
+      # Required: lets Watchtower see and recreate containers.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # PUBLIC packages → no creds needed (leave commented). PRIVATE → see
+      # deploy/AUTOMATION.md, "Private GHCR images".
+      # - /mnt/storage/web-scanner/watchtower-config.json:/config.json:ro

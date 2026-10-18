@@ -2,7 +2,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "3001:3000"
     volumes:
@@ -23,7 +23,7 @@ services:
   api:
     build:
       context: ./api
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "4000:4000"
     volumes:
@@ -38,6 +38,14 @@ services:
       - MINIO_BUCKET=${MINIO_BUCKET}
       - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:9000}
       - MINIO_USE_SSL=false
+      - EBAY_APP_ID=${EBAY_APP_ID:-}
+      - EBAY_CERTID=${EBAY_CERTID:-}
+      - EBAY_DEVID=${EBAY_DEVID:-}
+      - EBAY_ENV=${EBAY_ENV:-production}
+      - ML_APP_ID=${ML_APP_ID:-}
+      - ML_CLIENT_SECRET=${ML_CLIENT_SECRET:-}
+      - ML_SITE_ID=${ML_SITE_ID:-MCO}
+      - ML_ACCESS_TOKEN=${ML_ACCESS_TOKEN:-}
       - CORS_ORIGIN=${CORS_ORIGIN}
       - PORT=4000
       - NODE_ENV=development

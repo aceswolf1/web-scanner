@@ -1,0 +1,9 @@
+node_modules
+.nuxt
+.output
+.cache
+dist
+.git
+.env
+*.log
+Dockerfile*

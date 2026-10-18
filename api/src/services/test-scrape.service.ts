@@ -32,6 +32,12 @@ export interface TestScrapeResult {
   matches?: ScrapeMatch[]
   detectedCurrency?: string | null
   currencyWarning?: string | null
+  /**
+   * When true, marketplace adapter could not get a price via API and the HTML
+   * scrape pipeline should try next (e.g. restricted ML user-product pages).
+   * Stripped before leaving the service if a later path succeeds.
+   */
+  htmlFallback?: boolean
 }
 
 /**
@@ -180,6 +186,34 @@ export function withCurrencyFields(
  *   3. priceClass   — any `.priceClass` on the page
  */
 export async function testScrape(input: TestScrapeInput): Promise<TestScrapeResult> {
+  // Marketplace adapters (avoid bot walls when credentials are present).
+  // Dynamic import keeps the HTML path independent if an adapter module fails to load.
+  try {
+    const { isEbayUrl, scrapeEbayListing } = await import('./ebay.adapter.js')
+    if (isEbayUrl(input.url)) {
+      return scrapeEbayListing(input)
+    }
+  } catch {
+    // Fall through
+  }
+
+  try {
+    const { isMercadoLibreUrl, scrapeMercadoLibreListing } = await import(
+      './mercadolibre.adapter.js'
+    )
+    if (isMercadoLibreUrl(input.url)) {
+      const mlResult = await scrapeMercadoLibreListing(input)
+      // API succeeded or hard failure without HTML hope — return as-is.
+      if (mlResult.price !== null || !mlResult.htmlFallback) {
+        const { htmlFallback: _drop, ...rest } = mlResult
+        return rest
+      }
+      // Restricted /up/ pages and some items: continue to cheerio/puppeteer.
+    }
+  } catch {
+    // Fall through to HTML scrape
+  }
+
   // Normalize class names: strip leading dot if user added one.
   const priceClass = input.priceClass?.replace(/^\./, '') || null
   const fatherClass = input.fatherClass?.replace(/^\./, '') || null

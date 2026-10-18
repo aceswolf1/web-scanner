@@ -39,6 +39,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Server-only: used during SSR / Nitro to reach the API on the Docker network.
     apiInternalUrl: process.env.API_INTERNAL_URL ?? 'http://api:4000',
+    // Server-only: MinIO on the Docker network, used by the /storage image proxy.
+    storageInternalUrl: process.env.STORAGE_INTERNAL_URL ?? 'http://storage:9000',
     public: {
       apiUrl: process.env.NUXT_PUBLIC_API_URL ?? 'http://localhost:4000',
       storageUrl: process.env.NUXT_PUBLIC_STORAGE_URL ?? 'http://localhost:9000',

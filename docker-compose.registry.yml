@@ -1,0 +1,122 @@
+# Deploy-only stack — pulls prebuilt images from GHCR (no `build:`).
+# Paste into TrueNAS: Apps → Discover Apps → Custom App → Install via YAML.
+#
+# Only the frontend port is published. The browser reaches the API and images
+# through the frontend's same-origin proxy (/api → api:4000, /storage → MinIO),
+# so api, db and storage stay on the internal network.
+#
+# TrueNAS Custom Apps have NO .env file: replace every ${VAR:?...} below with the
+# real value in the TrueNAS YAML only — never commit secrets to this file.
+# See deploy/AUTOMATION.md.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    # Stateful: NO watchtower label — never auto-upgraded.
+    environment:
+      POSTGRES_DB: webscanner
+      POSTGRES_USER: webscanner
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - /mnt/storage/web-scanner/postgres:/var/lib/postgresql/data
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U webscanner -d webscanner"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  storage:
+    image: minio/minio:latest
+    restart: unless-stopped
+    # Stateful: NO watchtower label — never auto-upgraded.
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+    volumes:
+      - /mnt/storage/web-scanner/minio:/data
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  api:
+    image: ${IMAGE_PREFIX:-ghcr.io/aceswolf1}/web-scanner-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"   # stateless → auto-update
+    environment:
+      PORT: 4000
+      # Password must be URL-safe (no @ : / ? #) since it is embedded in the URL.
+      DATABASE_URL: postgresql://webscanner:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/webscanner
+      MINIO_ENDPOINT: storage
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: web-scanner-images
+      # Image URLs handed to the browser go through the frontend's /storage proxy.
+      MINIO_PUBLIC_URL: /storage
+      # Optional marketplace adapters — leave empty to disable.
+      EBAY_APP_ID: ${EBAY_APP_ID:-}
+      EBAY_CERTID: ${EBAY_CERTID:-}
+      EBAY_DEVID: ${EBAY_DEVID:-}
+      EBAY_ENV: ${EBAY_ENV:-production}
+      ML_APP_ID: ${ML_APP_ID:-}
+      ML_CLIENT_SECRET: ${ML_CLIENT_SECRET:-}
+      ML_SITE_ID: ${ML_SITE_ID:-MCO}
+      ML_ACCESS_TOKEN: ${ML_ACCESS_TOKEN:-}
+    # Headless Chromium (puppeteer scraping) is the memory-hungry part.
+    mem_limit: 1g
+    depends_on:
+      db:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  scraper:
+    image: ${IMAGE_PREFIX:-ghcr.io/aceswolf1}/web-scanner-scraper:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"   # stateless → auto-update
+    environment:
+      API_INTERNAL_URL: http://api:4000
+      SCRAPE_INTERVAL_HOURS: 8
+    mem_limit: 256m
+    depends_on:
+      api:
+        condition: service_healthy
+
+  frontend:
+    image: ${IMAGE_PREFIX:-ghcr.io/aceswolf1}/web-scanner-frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"   # stateless → auto-update
+    environment:
+      NUXT_PUBLIC_API_URL: /api
+      NUXT_PUBLIC_STORAGE_URL: /storage
+      NUXT_API_INTERNAL_URL: http://api:4000
+      NUXT_STORAGE_INTERNAL_URL: http://storage:9000
+    ports:
+      - "${APP_PORT:-3002}:3000"       # the ONLY published port
+    mem_limit: 384m
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
