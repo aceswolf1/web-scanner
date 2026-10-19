@@ -104,7 +104,9 @@ takes a while; later runs reuse the per-service `gha` cache.
    `/mnt/storage/web-scanner/postgres` and `/mnt/storage/web-scanner/minio`.
    Adjust the paths in the YAML if your pool isn't named `storage`.
 2. **Apps → Discover Apps → Custom App → Install via YAML**, name it
-   `web-scanner`, and paste [`docker-compose.registry.yml`](../docker-compose.registry.yml).
+   `web-scrapper`, and paste [`docker-compose.registry.yml`](../docker-compose.registry.yml).
+   (Paste the **registry** file, not the dev `docker-compose.yml`. The right one
+   has no `build:` lines and no `storage-init`.)
 3. **Fill in secrets directly in the pasted YAML** (see the gotcha below):
    - `${POSTGRES_PASSWORD:?...}` (both occurrences: `db` and `api`'s `DATABASE_URL`)
      — use a **URL-safe** password (letters/digits/`-`/`_`), it is embedded in a URL.
@@ -114,6 +116,16 @@ takes a while; later runs reuse the per-service `gha` cache.
 4. Port: the app listens on **`3002`** by default (`3001` is PixelPaladin). Change
    the left side of `"${APP_PORT:-3002}:3000"` if needed.
 5. Deploy, then open `http://<nas-ip>:3002`.
+
+TrueNAS names containers after the **app**, not the repo: `ix-web-scrapper-<service>-1`.
+
+| Service    | Container                     |
+|------------|-------------------------------|
+| `frontend` | `ix-web-scrapper-frontend-1`  |
+| `api`      | `ix-web-scrapper-api-1`       |
+| `scraper`  | `ix-web-scrapper-scraper-1`   |
+| `db`       | `ix-web-scrapper-db-1`        |
+| `storage`  | `ix-web-scrapper-storage-1`   |
 
 On first start the API creates the schema (`prisma db push`, which refuses
 destructive changes) and the image bucket with its public-read policy. No
@@ -209,6 +221,8 @@ a laptop.)
 | Images 404 after moving hosts | Old rows hold absolute `http://localhost:9000/...` URLs | Only affects data imported from dev; re-upload or update URLs |
 | `pull access denied for minio/minio` (or `minio/mc`) | MinIO stopped publishing official images | Use `pgsty/minio` (already in the compose files); bump its pinned tag deliberately |
 | Private image pull fails on NAS | No registry creds | Make packages public, or `docker login ghcr.io` + config.json |
+| API log: `P1000: Authentication failed ... for webscanner` | Password in `DATABASE_URL` ≠ `POSTGRES_PASSWORD`, **or** Postgres initialized its dataset earlier with another password (it only reads `POSTGRES_PASSWORD` on first init) | Make them match; if they already match, stop the app, empty the `postgres` dataset (`sudo find /mnt/storage/web-scanner/postgres -mindepth 1 -delete`), start again. Only do this while there's no data to keep |
+| `docker logs` → `No such container` after a failed deploy | TrueNAS deletes containers when `up` fails | Capture logs live (see the tip below) |
 
 ### Tip: Docker commands on TrueNAS
 
@@ -216,7 +230,29 @@ The admin user isn't in the `docker` group, so prefix every command with `sudo`
 (including inside `$(...)`), e.g.:
 
 ```bash
-sudo docker logs ix-web-scanner-api-1 --tail 50
+sudo docker ps -a --filter name=ix-web-scrapper --format '{{.Names}}\t{{.Status}}'
+sudo docker logs ix-web-scrapper-api-1 --tail 50
+sudo docker logs ix-web-scrapper-scraper-1 --tail 20
 sudo docker inspect -f '{{.Name}} label={{index .Config.Labels "com.centurylinklabs.watchtower.enable"}}' \
-  ix-web-scanner-api-1 ix-web-scanner-scraper-1 ix-web-scanner-frontend-1
+  ix-web-scrapper-api-1 ix-web-scrapper-scraper-1 ix-web-scrapper-frontend-1
+```
+
+### Tip: logs from a deploy that fails
+
+When `up` fails (`dependency failed to start: container ... is unhealthy`),
+TrueNAS removes the containers, and their logs go with them. The UI traceback
+is generic; the compose output is in `sudo tail -n 40 /var/log/app_lifecycle.log`.
+To see *why* a container failed, start this watcher **before** clicking Start
+in the UI:
+
+```bash
+until sudo docker ps -aq -f name=ix-web-scrapper-api-1 | grep -q .; do sleep 1; done; \
+  sudo docker logs -f ix-web-scrapper-api-1 2>&1 | tee /tmp/api.log
+```
+
+The rendered compose that TrueNAS actually deployed (handy for checking pasted
+values) is at:
+
+```bash
+sudo find /mnt/.ix-apps/app_configs/web-scrapper -name 'docker-compose.yaml'
 ```
