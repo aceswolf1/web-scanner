@@ -25,7 +25,7 @@ Images (all under `ghcr.io/aceswolf1/`):
 | `api`      | `web-scanner-api`      | yes          | stateless                                |
 | `scraper`  | `web-scanner-scraper`  | yes          | stateless                                |
 | `db`       | `postgres:16-alpine`   | **no**       | `/mnt/storage/web-scanner/postgres`      |
-| `storage`  | `minio/minio`          | **no**       | `/mnt/storage/web-scanner/minio`         |
+| `storage`  | `pgsty/minio` (pinned) | **no**       | `/mnt/storage/web-scanner/minio`         |
 
 ### How the browser reaches the backend
 
@@ -207,6 +207,7 @@ a laptop.)
 | API restarts, `Can't write to .../@prisma/engines` | Prisma engine/OpenSSL mismatch in image | Build stage must `apk add openssl` (already done); rebuild |
 | API exits on `db push` after a release | Schema change would lose data | Make the change additive, or migrate manually |
 | Images 404 after moving hosts | Old rows hold absolute `http://localhost:9000/...` URLs | Only affects data imported from dev; re-upload or update URLs |
+| `pull access denied for minio/minio` (or `minio/mc`) | MinIO stopped publishing official images | Use `pgsty/minio` (already in the compose files); bump its pinned tag deliberately |
 | Private image pull fails on NAS | No registry creds | Make packages public, or `docker login ghcr.io` + config.json |
 
 ### Tip: Docker commands on TrueNAS

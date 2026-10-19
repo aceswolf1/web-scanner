@@ -28,7 +28,9 @@ services:
       retries: 10
 
   storage:
-    image: minio/minio:latest
+    # Official minio/minio images were pulled from Docker Hub/Quay; pgsty/minio is a
+    # maintained community build of the same server. Pinned: stateful, never :latest.
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     restart: unless-stopped
     # Stateful: NO watchtower label — never auto-upgraded.
     command: server /data
