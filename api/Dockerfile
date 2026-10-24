@@ -1,5 +1,5 @@
 # Production image (published to GHCR). Local dev uses Dockerfile.dev.
-FROM node:22-alpine AS build
+FROM node:22.23.4-alpine AS build
 # openssl here too, so Prisma fetches engines matching the runtime (openssl 3).
 RUN apk add --no-cache openssl && npm install -g pnpm@9
 WORKDIR /app
@@ -9,7 +9,7 @@ COPY . .
 # Prisma client is generated per-arch here (buildx runs this stage under QEMU for arm64).
 RUN pnpm db:generate && pnpm build
 
-FROM node:22-alpine AS runtime
+FROM node:22.23.4-alpine AS runtime
 # openssl → Prisma engine; chromium + fonts → puppeteer price scraping.
 RUN apk add --no-cache wget openssl chromium nss freetype harfbuzz ca-certificates ttf-freefont
 WORKDIR /app
