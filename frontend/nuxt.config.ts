@@ -26,7 +26,12 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'Web Scanner',
+      meta: [{ name: 'theme-color', content: '#7C3AED' }],
       link: [
+        // Brand mark (violet tile + bolt). SVG for modern browsers; .ico fallback.
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'icon', href: '/favicon.ico', sizes: '48x48' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         {
           rel: 'stylesheet',
